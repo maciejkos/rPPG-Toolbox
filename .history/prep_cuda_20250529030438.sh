@@ -7,8 +7,7 @@
 set -e # Exit immediately if a command exits with a non-zero status.
 
 # --- Configuration ---
-# RPPG_TOOLBOX_REPO_URL="https://github.com/ubicomplab/rPPG-Toolbox.git" # Or your fork
-RPPG_TOOLBOX_REPO_URL="https://github.com/maciejkos/rPPG-Toolbox.git" 
+RPPG_TOOLBOX_REPO_URL="https://github.com/ubicomplab/rPPG-Toolbox.git" # Or your fork
 RPPG_TOOLBOX_DIR_NAME="rPPG-Toolbox"
 INSTALL_DIR="$HOME/GitHub" # Directory where the repo will be cloned
 YOUR_USERNAME="macie" # Define your username here
