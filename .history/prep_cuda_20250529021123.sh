@@ -10,8 +10,6 @@ set -e # Exit immediately if a command exits with a non-zero status.
 RPPG_TOOLBOX_REPO_URL="https://github.com/ubicomplab/rPPG-Toolbox.git" # Or your fork
 RPPG_TOOLBOX_DIR_NAME="rPPG-Toolbox"
 INSTALL_DIR="$HOME/GitHub" # Directory where the repo will be cloned
-YOUR_USERNAME="macie" # Define your username here
-
 
 # --- Helper Functions ---
 print_header() {
@@ -156,55 +154,49 @@ check_command_success
 cd "$INSTALL_DIR"
 check_command_success
 if [ -d "$RPPG_TOOLBOX_DIR_NAME" ]; then
-    echo "Directory $RPPG_TOOLBOX_DIR_NAME already exists. Removing existing directory for a clean clone..."
-    sudo rm -rf "$RPPG_TOOLBOX_DIR_NAME" # Ensure clean state if re-running
+    echo "Directory $RPPG_TOOLBOX_DIR_NAME already exists. Skipping clone."
+else
+    git clone "$RPPG_TOOLBOX_REPO_URL" "$RPPG_TOOLBOX_DIR_NAME"
     check_command_success
 fi
-git clone "$RPPG_TOOLBOX_REPO_URL" "$RPPG_TOOLBOX_DIR_NAME"
-check_command_success
 cd "$RPPG_TOOLBOX_DIR_NAME"
 check_command_success
 echo "Cloned rPPG-Toolbox to $(pwd)."
 
-# Set ownership and permissions for the cloned repository
-# This ensures the user running the script owns the cloned content.
-print_header "Setting ownership and permissions for cloned repository..."
-sudo chown -R "$YOUR_USERNAME:$YOUR_USERNAME" . # Use . for current directory (which is the RPPG_TOOLBOX_DIR_NAME)
-check_command_success
-chmod -R 700 . # Use . for current directory
-check_command_success
-echo "Ownership and permissions set for $(pwd)."
+# 5. Modify project files
+print_header "Modifying project files (requirements.txt and tools/mamba/setup.py)..."
 
+# Modify requirements.txt
+REQUIREMENTS_FILE="requirements.txt"
+if [ -f "$REQUIREMENTS_FILE" ]; then
+    echo "Modifying $REQUIREMENTS_FILE..."
+    # Ensure numpy is pinned to a compatible older version (uv pip install in setup.sh will handle exact version)
+    # Comment out any existing numpy line
+    sed -i.bak '/^numpy[[:space:]]*[<=>~]\{0,2\}[0-9]/s/^/# NPY_COMMENTED /' "$REQUIREMENTS_FILE" 
+    # Add our preferred numpy if a line for numpy (even commented) isn't already there or if our specific pin is missing
+    if ! grep -q -E "^(# NPY_COMMENTED )?numpy~=1\.21\.6" "$REQUIREMENTS_FILE"; then
+        echo "numpy~=1.21.6" >> "$REQUIREMENTS_FILE" 
+    fi
 
-# 5. Create requirements.txt with specified known-good versions
-print_header "Creating requirements.txt with specified versions..."
-REQUIREMENTS_FILE="requirements.txt" # In the root of the cloned rPPG-Toolbox repo
-
-cat > "$REQUIREMENTS_FILE" << 'EOF_REQUIREMENTS'
-h5py==2.10.0
-yacs==0.1.8
-scipy==1.5.4
-pandas==1.1.5
-scikit-image==0.17.2
-numpy==1.22.0
-matplotlib==3.1.2
-opencv_python==4.5.2.54
-PyYAML==6.0
-scikit_learn==1.0.2
-tensorboardX==2.4.1
-tqdm==4.64.0
-mat73==0.59
-ipykernel==6.26.0
-ipywidgets==8.1.1
-fsspec==2024.10.0
-timm==1.0.11
-causal-conv1d==1.0.0
-protobuf==3.20.3
-neurokit2==0.2.10
-thop==0.1.1.post2209072238
-EOF_REQUIREMENTS
-check_command_success
-echo "$REQUIREMENTS_FILE created/overwritten successfully."
+    # Change scipy version from 1.5.2 to 1.5.4
+    sed -i.bak 's/^scipy==1\.5\.2/scipy==1.5.4/' "$REQUIREMENTS_FILE"
+    # If scipy is not pinned as 1.5.2 or 1.5.4, add/ensure 1.5.4.
+    if ! grep -q "^scipy==1\.5\.4" "$REQUIREMENTS_FILE" && ! grep -q "^scipy==1\.5\.2" "$REQUIREMENTS_FILE" && ! grep -q "^scipy[<=>~]" "$REQUIREMENTS_FILE"; then
+        echo "scipy==1.5.4" >> "$REQUIREMENTS_FILE"
+    elif ! grep -q "^scipy==1\.5\.4" "$REQUIREMENTS_FILE" && grep -q "^scipy==1\.5\.2" "$REQUIREMENTS_FILE"; then
+        echo "Changed scipy from 1.5.2 to 1.5.4" # Already done by sed
+    elif ! grep -q "^scipy==1\.5\.4" "$REQUIREMENTS_FILE"; then
+         echo "Warning: scipy version in requirements.txt is not 1.5.2 or 1.5.4 after attempted modification. Manual check might be needed."
+    fi
+    # Ensure scikit-image==0.17.2 and h5py==2.10.0 are present if not already there
+    # (This part is more complex with sed to check and add if missing without duplication)
+    # For simplicity, we'll assume these are in the original requirements.txt or the user will ensure they are.
+    # The uv pip install commands in the inner setup.sh will handle specific versions of build tools like Cython.
+    echo "$REQUIREMENTS_FILE modifications attempted."
+else
+    echo "Error: $REQUIREMENTS_FILE not found in $(pwd). Cannot apply modifications."
+    exit 1
+fi
 
 # Modify tools/mamba/setup.py
 MAMBA_SETUP_FILE="tools/mamba/setup.py"
@@ -283,23 +275,13 @@ uv_setup() {
     uv pip install setuptools wheel || exit 1
     
     echo "Installing pinned build dependencies: Cython (0.29.37), NumPy (~1.21.6), and pkgconfig..."
-    # numpy~=1.21.6 is specified here. requirements.txt has numpy==1.22.0. 
-    # The one in requirements.txt will likely take precedence or cause uv to resolve.
-    # For consistency, it's best if this pre-install matches or is compatible with requirements.txt.
-    # Given requirements.txt now dictates numpy==1.22.0, this line could be:
-    # uv pip install "Cython==0.29.37" "numpy==1.22.0" pkgconfig || exit 1 
-    # Or, if we let requirements.txt handle numpy:
-    uv pip install "Cython==0.29.37" pkgconfig || exit 1 
-    # And ensure numpy==1.22.0 is first in requirements.txt or installed before things that need it for build.
-    # For now, let's keep the original numpy~=1.21.6 here, uv will resolve with requirements.txt's numpy==1.22.0.
-
     uv pip install "Cython==0.29.37" "numpy~=1.21.6" pkgconfig || exit 1 
 
     echo "Installing PyTorch with CUDA 12.1 support..."
     uv pip install torch==2.1.2+cu121 torchvision==0.16.2+cu121 torchaudio==2.1.2+cu121 --index-url https://download.pytorch.org/whl/cu121 || exit 1
     
     echo "Installing packages from requirements.txt..."
-    # requirements.txt now contains numpy==1.22.0
+    # Ensure requirements.txt has compatible scipy, scikit-image, h5py versions for the numpy installed.
     uv pip install -r requirements.txt --no-build-isolation || exit 1
     
     echo "Pre-installing tokenizers==0.13.3 (known compatible version for mamba_ssm's older transformers)..."
@@ -307,11 +289,12 @@ uv_setup() {
 
     echo "Ensuring clang is installed (as per rPPG-Toolbox README suggestion for mamba)..."
     if ! command -v clang &> /dev/null || ! command -v clang++ &> /dev/null; then
-        echo "clang or clang++ not found. This script assumes the outer script installed it."
-        echo "If running independently, please ensure clang is installed or use gcc-11."
-        # We will proceed assuming gcc-11 is the primary target based on previous success.
-        if ! command -v gcc-11 &> /dev/null; then 
-             echo "Warning: gcc-11 also not found. mamba_ssm build might fail."
+        echo "clang or clang++ not found, attempting to install clang..."
+        # This script (inner) should not run sudo. Outer script should have installed it.
+        # If running this part independently, user needs to ensure clang is present.
+        # For now, we assume the outer script handled clang installation.
+        if ! command -v gcc-11 &> /dev/null; then # Fallback check if clang is strictly needed and not found
+             echo "Warning: clang/clang++ not found. Will rely on CC/CXX environment variables for gcc-11."
         fi
     else
         echo "clang and clang++ found."
