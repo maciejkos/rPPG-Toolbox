@@ -8,4 +8,3 @@ import dataset.data_loader.MMPDLoader
 import dataset.data_loader.BP4DPlusLoader
 import dataset.data_loader.BP4DPlusBigSmallLoader
 import dataset.data_loader.UBFCPHYSLoader
-import dataset.data_loader.PhysDriveLoader

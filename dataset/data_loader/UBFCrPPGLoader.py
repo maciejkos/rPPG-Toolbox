@@ -43,6 +43,7 @@ class UBFCrPPGLoader(BaseLoader):
 
     def get_raw_data(self, data_path):
         """Returns data directories under the path(For UBFC-rPPG dataset)."""
+        print("Loading raw data from: ", data_path)
         data_dirs = glob.glob(data_path + os.sep + "subject*")
         if not data_dirs:
             raise ValueError(self.dataset_name + " data paths empty!")

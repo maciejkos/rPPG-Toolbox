@@ -100,7 +100,11 @@ class BaseLoader(Dataset):
     def __getitem__(self, index):
         """Returns a clip of video(3,T,W,H) and it's corresponding signals(T)."""
         data = np.load(self.inputs[index])
+        # label = np.load(self.labels[index])
         label = np.load(self.labels[index])
+        label_path_to_load = self.labels[index]
+        print(f"DEBUG: Attempting to load label from: {label_path_to_load}") # Debug print
+        label = np.load(label_path_to_load)
         if self.data_format == 'NDCHW':
             data = np.transpose(data, (0, 3, 1, 2))
         elif self.data_format == 'NCDHW':
