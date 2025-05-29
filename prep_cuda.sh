@@ -11,7 +11,7 @@ set -e # Exit immediately if a command exits with a non-zero status.
 RPPG_TOOLBOX_REPO_URL="https://github.com/maciejkos/rPPG-Toolbox.git" 
 RPPG_TOOLBOX_DIR_NAME="rPPG-Toolbox"
 INSTALL_DIR="$HOME/GitHub" # Directory where the repo will be cloned
-YOUR_USERNAME="macie" # Define your username here
+YOUR_USERNAME=$(whoami) # Automatically get the current username
 
 
 # --- Helper Functions ---
@@ -30,12 +30,24 @@ check_command_success() {
 
 # --- Main Script ---
 
-print_header "Starting rPPG-Toolbox Full Setup for WSL2 Ubuntu 22.04 LTS"
+print_header "Starting rPPG-Toolbox Full Setup for WSL2 Ubuntu 22.04 LTS for user $YOUR_USERNAME"
 
 # 1. Update package lists and install essential build tools & utilities
-print_header "Updating system and installing prerequisites..."
+print_header "Updating system package lists..."
 sudo apt-get update
 check_command_success
+
+print_header "Installing software-properties-common (for add-apt-repository)..."
+sudo apt-get install -y software-properties-common
+check_command_success
+
+print_header "Adding deadsnakes PPA for Python 3.8..."
+sudo add-apt-repository -y ppa:deadsnakes/ppa
+check_command_success
+sudo apt-get update # Update package list again after adding PPA
+check_command_success
+
+print_header "Installing Python 3.8 and other prerequisites..."
 sudo apt-get install -y --no-install-recommends \
     wget \
     gnupg \
@@ -52,7 +64,7 @@ sudo apt-get install -y --no-install-recommends \
     libhdf5-dev \
     curl # For installing uv
 check_command_success
-echo "System prerequisites installed."
+echo "System prerequisites (including Python 3.8 from PPA) installed."
 
 # 2. Install uv (Python package manager)
 print_header "Installing uv..."
@@ -170,6 +182,8 @@ echo "Cloned rPPG-Toolbox to $(pwd)."
 # Set ownership and permissions for the cloned repository
 # This ensures the user running the script owns the cloned content.
 print_header "Setting ownership and permissions for cloned repository..."
+# The script is run by the user, so sudo is needed to chown if git cloned as root somehow,
+# or if the parent INSTALL_DIR was root-owned. For $HOME/GitHub, this should be fine.
 sudo chown -R "$YOUR_USERNAME:$YOUR_USERNAME" . # Use . for current directory (which is the RPPG_TOOLBOX_DIR_NAME)
 check_command_success
 chmod -R 700 . # Use . for current directory
@@ -177,35 +191,35 @@ check_command_success
 echo "Ownership and permissions set for $(pwd)."
 
 
-# # 5. Create requirements.txt with specified known-good versions
-# print_header "Creating requirements.txt with specified versions..."
-# REQUIREMENTS_FILE="requirements.txt" # In the root of the cloned rPPG-Toolbox repo
+# 5. Create requirements.txt with specified known-good versions
+print_header "Creating requirements.txt with specified versions..."
+REQUIREMENTS_FILE="requirements.txt" # In the root of the cloned rPPG-Toolbox repo
 
-# cat > "$REQUIREMENTS_FILE" << 'EOF_REQUIREMENTS'
-# h5py==2.10.0
-# yacs==0.1.8
-# scipy==1.5.4
-# pandas==1.1.5
-# scikit-image==0.17.2
-# numpy==1.22.0
-# matplotlib==3.1.2
-# opencv_python==4.5.2.54
-# PyYAML==6.0
-# scikit_learn==1.0.2
-# tensorboardX==2.4.1
-# tqdm==4.64.0
-# mat73==0.59
-# ipykernel==6.26.0
-# ipywidgets==8.1.1
-# fsspec==2024.10.0
-# timm==1.0.11
-# causal-conv1d==1.0.0
-# protobuf==3.20.3
-# neurokit2==0.2.10
-# thop==0.1.1.post2209072238
-# EOF_REQUIREMENTS
-# check_command_success
-# echo "$REQUIREMENTS_FILE created/overwritten successfully."
+cat > "$REQUIREMENTS_FILE" << 'EOF_REQUIREMENTS'
+h5py==2.10.0
+yacs==0.1.8
+scipy==1.5.4
+pandas==1.1.5
+scikit-image==0.17.2
+numpy==1.22.0
+matplotlib==3.1.2
+opencv_python==4.5.2.54
+PyYAML==6.0
+scikit_learn==1.0.2
+tensorboardX==2.4.1
+tqdm==4.64.0
+mat73==0.59
+ipykernel==6.26.0
+ipywidgets==8.1.1
+fsspec==2024.10.0
+timm==1.0.11
+causal-conv1d==1.0.0
+protobuf==3.20.3
+neurokit2==0.2.10
+thop==0.1.1.post2209072238
+EOF_REQUIREMENTS
+check_command_success
+echo "$REQUIREMENTS_FILE created/overwritten successfully."
 
 # Modify tools/mamba/setup.py
 MAMBA_SETUP_FILE="tools/mamba/setup.py"
@@ -290,10 +304,9 @@ uv_setup() {
     # Given requirements.txt now dictates numpy==1.22.0, this line could be:
     # uv pip install "Cython==0.29.37" "numpy==1.22.0" pkgconfig || exit 1 
     # Or, if we let requirements.txt handle numpy:
-    uv pip install "Cython==0.29.37" pkgconfig || exit 1 
+    # uv pip install "Cython==0.29.37" pkgconfig || exit 1 
     # And ensure numpy==1.22.0 is first in requirements.txt or installed before things that need it for build.
-    # For now, let's keep the original numpy~=1.21.6 here, uv will resolve with requirements.txt's numpy==1.22.0.
-
+    # Current strategy: pre-install an older numpy, let requirements.txt finalize to 1.22.0
     uv pip install "Cython==0.29.37" "numpy~=1.21.6" pkgconfig || exit 1 
 
     echo "Installing PyTorch with CUDA 12.1 support..."
