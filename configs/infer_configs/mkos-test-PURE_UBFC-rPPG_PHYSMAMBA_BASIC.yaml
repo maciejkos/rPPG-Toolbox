@@ -1,7 +1,7 @@
 BASE: ['']
 TOOLBOX_MODE: "only_test"  # "train_and_test"  or "only_test"
-# DEVICE: "cuda:0" # Or "cpu"
-DEVICE: "cpu" # Or "cpu"
+DEVICE: "cuda:0" # Or "cpu"
+# DEVICE: "cpu" # Or "cpu"
 LOG:
   PATH: "runs/inference_experiment" # Outputs will be saved here
 
