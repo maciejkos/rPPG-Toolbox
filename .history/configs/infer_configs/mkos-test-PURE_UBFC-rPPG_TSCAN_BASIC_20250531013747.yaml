@@ -1,0 +1,46 @@
+BASE: ['']
+TOOLBOX_MODE: "only_test"
+DEVICE: "cpu"              # Set to CPU
+NUM_OF_GPU_TRAIN: 0        # Explicitly set to 0 for CPU
+
+LOG:
+  PATH: "runs/my_avi_tscan_inference_cpu" # Unique log path
+
+MODEL:
+  NAME: "Tscan"
+  TSCAN:
+    FRAME_DEPTH: 10       # Default for TSCAN, usually matches training
+  # DROP_RATE: 0.2        # Typically for training, can be commented out
+
+TEST:
+  DATA:
+    DATASET: "UBFC-rPPG"    # Uses the UBFC-rPPG loader logic
+    DATA_PATH: "mkos/raw/"  # Your renamed input directory
+    DO_PREPROCESS: True     # Preprocess your AVI
+    CACHED_PATH: "mkos/preprocessed_inference/my_avi_tscan_run" # Unique cache path
+    FILE_LIST_PATH: "mkos/preprocessed_inference/my_avi_tscan_run/DataFileLists" # Adjusted
+    EXP_DATA_NAME: "my_avi_tscan_preprocessed" # Unique preprocessing name
+    FS: 30                  # IMPORTANT: SET TO YOUR VIDEO'S ACTUAL FRAME RATE
+    PREPROCESS:
+      USE_PSUEDO_PPG_LABEL: True # Crucial for no ground truth
+      DATA_TYPE: ['DiffNormalized', 'Standardized'] # Common for TSCAN
+      LABEL_TYPE: "DiffNormalized" # To match pseudo label generation (and common TSCAN training)
+      DO_CHUNK: True
+      CHUNK_LENGTH: 180     # Common for TSCAN, ensure it matches model expectation
+      CROP_FACE:
+        DO_CROP_FACE: True
+        BACKEND: "Y5F"      # Or "HC" if Y5F causes issues or isn't set up
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+      RESIZE:
+        H: 72               # Common for TSCAN
+        W: 72               # Common for TSCAN
+  METRICS: []               # No ground truth, so no metrics
+
+INFERENCE:
+  BATCH_SIZE: 1
+  MODEL_PATH: "./final_model_release/PURE_TSCAN.pth" # Path to TSCAN pre-trained model
+  EVALUATION_METHOD: "FFT"
+  EVALUATION_WINDOW:
+    USE_SMALLER_WINDOW: False
+    WINDOW_SIZE: 10

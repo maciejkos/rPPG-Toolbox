@@ -35,7 +35,8 @@ TEST:
       RESIZE:
         H: 72               # Common for TSCAN
         W: 72               # Common for TSCAN
-  METRICS: []               # No ground truth, so no metrics
+  # METRICS: []               # No ground truth, so no metrics
+  METRICS: ['MAE', 'RMSE', 'MAPE', 'Pearson', 'SNR'] 
 
 INFERENCE:
   BATCH_SIZE: 1
