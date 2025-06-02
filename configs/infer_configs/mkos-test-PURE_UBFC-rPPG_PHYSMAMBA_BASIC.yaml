@@ -1,7 +1,7 @@
 BASE: ['']
 TOOLBOX_MODE: "only_test"  # "train_and_test"  or "only_test"
-DEVICE: "cuda:0" # Or "cpu"
-# DEVICE: "cpu" # Or "cpu"
+# DEVICE: "cuda:0" # Or "cpu"
+DEVICE: "cpu" # Or "cpu"
 LOG:
   PATH: "runs/inference_experiment" # Outputs will be saved here
 
@@ -15,12 +15,12 @@ TEST: # This section is still used by "only_test" mode to load and preprocess da
     DATASET: "UBFC-rPPG"  # Needs a valid dataset name to select a loader.
                           # UBFC-rPPG is a common choice if your video is similar (e.g., single person, webcam-like).
                           # The loader will process videos found in DATA_PATH.
-    DATA_PATH: "input/raw/" # IMPORTANT: Place your video(s) here.
-                            # For UBFC-rPPG loader, it expects a structure like: input/raw/subject1/vid.avi
-                            # If you have just one video, you can create e.g., input/raw/my_video_subject/my_video.avi
+    DATA_PATH: "mkos/raw/" # IMPORTANT: Place your video(s) here.
+                            # For UBFC-rPPG loader, it expects a structure like: mkos/raw/subject1/vid.avi
+                            # If you have just one video, you can create e.g., mkos/raw/my_video_subject/my_video.avi
     DO_PREPROCESS: True   # Set to True to process the video(s) in DATA_PATH.
-    CACHED_PATH: "input/preprocessed_inference" # Can be a different path for inference outputs
-    FILE_LIST_PATH: "input/preprocessed_inference/DataFileLists" # Path for generated file lists
+    CACHED_PATH: "mkos/preprocessed_inference/my_avi_run_mkos" # Can be a different path for inference outputs
+    FILE_LIST_PATH: "mkos/preprocessed_inference/my_avi_run_mkos/DataFileLists" # Path for generated file lists
     EXP_DATA_NAME: "inference_run_PhysMamba" # Unique name for this preprocessing run
     BEGIN: 0.0
     END: 1.0
@@ -43,7 +43,7 @@ TEST: # This section is still used by "only_test" mode to load and preprocess da
   METRICS: [] # Set to empty list if you don't want/need metrics
 
 INFERENCE:
-  BATCH_SIZE: 4 # Adjust based on your GPU memory
+  BATCH_SIZE: 1 # Adjust based on your GPU memory
   MODEL_PATH: "final_model_release/PURE_PhysMamba_DiffNormalized.pth" # CRUCIAL: Path to the pre-trained model for inference
   EVALUATION_METHOD: FFT        # "FFT" or "peak detection"
   EVALUATION_WINDOW:
@@ -51,6 +51,7 @@ INFERENCE:
     WINDOW_SIZE: 10             # In seconds, if USE_SMALLER_WINDOW is True or if method requires it
 
 # NUM_OF_GPU_TRAIN: 1 # Not relevant for "only_test" mode
+NUM_OF_GPU_TRAIN: 0 # Not relevant for "only_test" mode
 
 # TEST:
 #   DATA:

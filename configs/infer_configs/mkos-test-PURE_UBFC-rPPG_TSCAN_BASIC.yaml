@@ -1,51 +1,46 @@
 BASE: ['']
-TOOLBOX_MODE: "only_test"      # "train_and_test"  or "only_test"
+TOOLBOX_MODE: "only_test"
+DEVICE: "cpu"              # Set to CPU
+NUM_OF_GPU_TRAIN: 0        # Explicitly set to 0 for CPU
+
+LOG:
+  PATH: "runs/my_avi_tscan_inference_cpu" # Unique log path
+
+MODEL:
+  NAME: "Tscan"
+  TSCAN:
+    FRAME_DEPTH: 10       # Default for TSCAN, usually matches training
+  # DROP_RATE: 0.2        # Typically for training, can be commented out
+
 TEST:
-  METRICS: ['MAE', 'RMSE', 'MAPE', 'Pearson', 'SNR', 'BA']
-  USE_LAST_EPOCH: True
   DATA:
-    FS: 30
-    DATASET: UBFC-rPPG
-    # DO_PREPROCESS: False                    # if first time, should be true
-    DO_PREPROCESS: True                    # if first time, should be true
-    DATA_FORMAT: NDCHW
-    # DATA_PATH: "/gscratch/ubicomp/xliu0/data3/mnt/Datasets/UBFC-rPPG/RawData"                     # Raw dataset path, need to be updated
-    # CACHED_PATH: "/gscratch/ubicomp/xliu0/data3/mnt/Datasets/rppg_toolbox/PreprocessedData"    # Processed dataset save path, need to be updated
-    DATA_PATH: "input/raw"                     # Raw dataset path, need to be updated
-    CACHED_PATH: "input/preprocessed"    # Processed dataset save path, need to be updated
-    EXP_DATA_NAME: ""
-    BEGIN: 0.0
-    END: 1.0
+    DATASET: "UBFC-rPPG"    # Uses the UBFC-rPPG loader logic
+    DATA_PATH: "mkos/raw/"  # Your renamed input directory
+    DO_PREPROCESS: True     # Preprocess your AVI
+    CACHED_PATH: "mkos/preprocessed_inference/my_avi_tscan_run" # Unique cache path
+    FILE_LIST_PATH: "mkos/preprocessed_inference/my_avi_tscan_run/DataFileLists" # Adjusted
+    EXP_DATA_NAME: "my_avi_tscan_preprocessed" # Unique preprocessing name
+    FS: 30                  # IMPORTANT: SET TO YOUR VIDEO'S ACTUAL FRAME RATE
     PREPROCESS:
-      DATA_TYPE: [ 'DiffNormalized','Standardized' ]
-      LABEL_TYPE: DiffNormalized
+      USE_PSUEDO_PPG_LABEL: True # Crucial for no ground truth
+      DATA_TYPE: ['DiffNormalized', 'Standardized'] # Common for TSCAN
+      LABEL_TYPE: "DiffNormalized" # To match pseudo label generation (and common TSCAN training)
       DO_CHUNK: True
-      CHUNK_LENGTH: 180
+      CHUNK_LENGTH: 180     # Common for TSCAN, ensure it matches model expectation
       CROP_FACE:
         DO_CROP_FACE: True
-        BACKEND: 'HC'    # HC for Haar Cascade, Y5F for YOLO5Face
+        BACKEND: "Y5F"      # Or "HC" if Y5F causes issues or isn't set up
         USE_LARGE_FACE_BOX: True
         LARGE_BOX_COEF: 1.5
-        DETECTION:
-          DO_DYNAMIC_DETECTION: False
-          DYNAMIC_DETECTION_FREQUENCY : 30
-          USE_MEDIAN_FACE_BOX: False    # This should be used ONLY if dynamic detection is used
       RESIZE:
-        H: 72
-        W: 72
-DEVICE: cuda:0
-NUM_OF_GPU_TRAIN: 1
-LOG:
-  PATH: runs/exp
-MODEL:
-  DROP_RATE: 0.2
-  NAME: Tscan
-  TSCAN:
-    FRAME_DEPTH: 10
+        H: 72               # Common for TSCAN
+        W: 72               # Common for TSCAN
+  METRICS: []               # No ground truth, so no metrics
+
 INFERENCE:
-  BATCH_SIZE: 4
-  EVALUATION_METHOD: FFT        # "FFT" or "peak detection"
+  BATCH_SIZE: 1
+  MODEL_PATH: "./final_model_release/PURE_TSCAN.pth" # Path to TSCAN pre-trained model
+  EVALUATION_METHOD: "FFT"
   EVALUATION_WINDOW:
-    USE_SMALLER_WINDOW: False        # Change this if you'd like an evaluation window smaller than the test video length
-    WINDOW_SIZE: 10        # In seconds
-  MODEL_PATH: "./final_model_release/PURE_TSCAN.pth"
+    USE_SMALLER_WINDOW: False
+    WINDOW_SIZE: 10

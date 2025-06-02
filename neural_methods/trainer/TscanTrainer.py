@@ -26,7 +26,14 @@ class TscanTrainer(BaseTrainer):
         self.model_file_name = config.TRAIN.MODEL_FILE_NAME
         self.batch_size = config.TRAIN.BATCH_SIZE
         self.num_of_gpu = config.NUM_OF_GPU_TRAIN
-        self.base_len = self.num_of_gpu * self.frame_depth
+        
+        # Fix base_len calculation for CPU mode
+        if self.num_of_gpu > 0:
+            self.base_len = self.num_of_gpu * self.frame_depth
+        else:
+            # For CPU mode, use frame_depth as base_len to avoid division by zero
+            self.base_len = self.frame_depth
+        
         self.chunk_len = config.TRAIN.DATA.PREPROCESS.CHUNK_LENGTH
         self.config = config 
         self.min_valid_loss = None
@@ -34,7 +41,8 @@ class TscanTrainer(BaseTrainer):
 
         if config.TOOLBOX_MODE == "train_and_test":
             self.model = TSCAN(frame_depth=self.frame_depth, img_size=config.TRAIN.DATA.PREPROCESS.RESIZE.H).to(self.device)
-            self.model = torch.nn.DataParallel(self.model, device_ids=list(range(config.NUM_OF_GPU_TRAIN)))
+            if config.NUM_OF_GPU_TRAIN > 0:
+                self.model = torch.nn.DataParallel(self.model, device_ids=list(range(config.NUM_OF_GPU_TRAIN)))
 
             self.num_train_batches = len(data_loader["train"])
             self.criterion = torch.nn.MSELoss()
@@ -45,7 +53,8 @@ class TscanTrainer(BaseTrainer):
                 self.optimizer, max_lr=config.TRAIN.LR, epochs=config.TRAIN.EPOCHS, steps_per_epoch=self.num_train_batches)
         elif config.TOOLBOX_MODE == "only_test":
             self.model = TSCAN(frame_depth=self.frame_depth, img_size=config.TEST.DATA.PREPROCESS.RESIZE.H).to(self.device)
-            self.model = torch.nn.DataParallel(self.model, device_ids=list(range(config.NUM_OF_GPU_TRAIN)))
+            if config.NUM_OF_GPU_TRAIN > 0:
+                self.model = torch.nn.DataParallel(self.model, device_ids=list(range(config.NUM_OF_GPU_TRAIN)))
         else:
             raise ValueError("TS-CAN trainer initialized in incorrect toolbox mode!")
 
@@ -141,6 +150,31 @@ class TscanTrainer(BaseTrainer):
             valid_loss = np.asarray(valid_loss)
         return np.mean(valid_loss)
 
+    def _load_model_state_dict(self, model_path):
+        """
+        Smart state dict loader that handles DataParallel key mismatch automatically.
+        Detects CPU/GPU mode from config and adjusts keys accordingly.
+        """
+        state_dict = torch.load(model_path, map_location=self.device)
+        
+        # Check if we're running without DataParallel (CPU mode or single GPU without DataParallel)
+        model_uses_dataparallel = self.config.NUM_OF_GPU_TRAIN > 0
+        
+        # Check if saved model was trained with DataParallel (has 'module.' prefix)
+        saved_with_dataparallel = any(key.startswith('module.') for key in state_dict.keys())
+        
+        # Handle key mismatch
+        if saved_with_dataparallel and not model_uses_dataparallel:
+            # Remove 'module.' prefix (GPU trained model → CPU inference)
+            print("Detected DataParallel keys in saved model, removing 'module.' prefix for CPU/single-GPU inference")
+            state_dict = {key.replace('module.', ''): value for key, value in state_dict.items()}
+        elif not saved_with_dataparallel and model_uses_dataparallel:
+            # Add 'module.' prefix (CPU trained model → GPU inference)
+            print("Adding 'module.' prefix for DataParallel inference")
+            state_dict = {'module.' + key: value for key, value in state_dict.items()}
+        
+        return state_dict
+
     def test(self, data_loader):
         """ Model evaluation on the testing dataset."""
         if data_loader["test"] is None:
@@ -158,7 +192,10 @@ class TscanTrainer(BaseTrainer):
         if self.config.TOOLBOX_MODE == "only_test":
             if not os.path.exists(self.config.INFERENCE.MODEL_PATH):
                 raise ValueError("Inference model path error! Please check INFERENCE.MODEL_PATH in your yaml.")
-            self.model.load_state_dict(torch.load(self.config.INFERENCE.MODEL_PATH))
+            
+            # Use smart state dict loader
+            state_dict = self._load_model_state_dict(self.config.INFERENCE.MODEL_PATH)
+            self.model.load_state_dict(state_dict)
             print("Testing uses pretrained model!")
         else:
             if self.config.TEST.USE_LAST_EPOCH:
@@ -166,13 +203,19 @@ class TscanTrainer(BaseTrainer):
                 self.model_dir, self.model_file_name + '_Epoch' + str(self.max_epoch_num - 1) + '.pth')
                 print("Testing uses last epoch as non-pretrained model!")
                 print(last_epoch_model_path)
-                self.model.load_state_dict(torch.load(last_epoch_model_path))
+                
+                # Use smart state dict loader
+                state_dict = self._load_model_state_dict(last_epoch_model_path)
+                self.model.load_state_dict(state_dict)
             else:
                 best_model_path = os.path.join(
                     self.model_dir, self.model_file_name + '_Epoch' + str(self.best_epoch) + '.pth')
                 print("Testing uses best epoch selected using model selection as non-pretrained model!")
                 print(best_model_path)
-                self.model.load_state_dict(torch.load(best_model_path))
+                
+                # Use smart state dict loader
+                state_dict = self._load_model_state_dict(best_model_path)
+                self.model.load_state_dict(state_dict)
 
         self.model = self.model.to(self.config.DEVICE)
         self.model.eval()
