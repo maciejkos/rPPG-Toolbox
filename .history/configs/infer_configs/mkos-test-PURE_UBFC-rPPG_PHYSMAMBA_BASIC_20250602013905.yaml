@@ -1,0 +1,84 @@
+BASE: ['']
+TOOLBOX_MODE: "only_test"  # "train_and_test"  or "only_test"
+# DEVICE: "cuda:0" # Or "cpu"
+DEVICE: "cpu" # Or "cpu"
+LOG:
+  PATH: "runs/inference_experiment" # Outputs will be saved here
+
+MODEL:
+  NAME: "PhysMamba"      # Or your model, e.g., Tscan, Physnet
+  # RESUME path is generally for resuming training or standard testing.
+  # For "only_test" with PhysMambaTrainer, INFERENCE.MODEL_PATH is primary.
+
+TEST: # This section is still used by "only_test" mode to load and preprocess data
+  DATA:
+    DATASET: "UBFC-rPPG"  # Needs a valid dataset name to select a loader.
+                          # UBFC-rPPG is a common choice if your video is similar (e.g., single person, webcam-like).
+                          # The loader will process videos found in DATA_PATH.
+    DATA_PATH: "mkos/raw/" # IMPORTANT: Place your video(s) here.
+                            # For UBFC-rPPG loader, it expects a structure like: mkos/raw/subject1/vid.avi
+                            # If you have just one video, you can create e.g., mkos/raw/my_video_subject/my_video.avi
+    DO_PREPROCESS: True   # Set to True to process the video(s) in DATA_PATH.
+    CACHED_PATH: "mkos/preprocessed_inference/my_avi_run_mkos" # Can be a different path for inference outputs
+    FILE_LIST_PATH: "mkos/preprocessed_inference/my_avi_run_mkos/DataFileLists" # Path for generated file lists
+    EXP_DATA_NAME: "inference_run_PhysMamba" # Unique name for this preprocessing run
+    BEGIN: 0.0
+    END: 1.0
+    FS: 30 # IMPORTANT: Adjust to your video's actual frame rate
+    PREPROCESS:
+      USE_PSUEDO_PPG_LABEL: True # Generates dummy labels; actual ground truth not needed for just inference.
+      DATA_TYPE: ["DiffNormalized"] # Must match the model's training
+      LABEL_TYPE: "DiffNormalized"  # Must match the model's training (even if pseudo)
+      DO_CHUNK: True
+      CHUNK_LENGTH: 180 # Must match the model's training
+      CROP_FACE:
+        DO_CROP_FACE: True
+        # BACKEND: "HC" # Or "Y5F_..." if YOLO5Face is set up and preferred for better detection
+        BACKEND: "Y5F"
+        USE_LARGE_FACE_BOX: True
+        LARGE_BOX_COEF: 1.5
+      RESIZE:
+        W: 128 # Must match the model's training
+        H: 128 # Must match the model's training
+  METRICS: [] # Set to empty list if you don't want/need metrics
+
+INFERENCE:
+  BATCH_SIZE: 1 # Adjust based on your GPU memory
+  MODEL_PATH: "final_model_release/PURE_PhysMamba_DiffNormalized.pth" # CRUCIAL: Path to the pre-trained model for inference
+  EVALUATION_METHOD: FFT        # "FFT" or "peak detection"
+  EVALUATION_WINDOW:
+    USE_SMALLER_WINDOW: False   # Change this if you'd like an evaluation window smaller than the test video length
+    WINDOW_SIZE: 10             # In seconds, if USE_SMALLER_WINDOW is True or if method requires it
+
+# NUM_OF_GPU_TRAIN: 1 # Not relevant for "only_test" mode
+NUM_OF_GPU_TRAIN: 0 # Not relevant for "only_test" mode
+
+# TEST:
+#   DATA:
+#     DATASET: "UBFC-rPPG"  # Using UBFC-rPPG loader structure for the single video
+#     DATA_PATH: "input/raw/" # e.g., contains subject1/vid.avi
+#     DO_PREPROCESS: True   # Preprocess the single video
+#     CACHED_PATH: "input/preprocessed" # Where to save/load preprocessed chunks
+#     FILE_LIST_PATH: "input/preprocessed/DataFileLists" # Where to save/load file list
+#     BEGIN: 0.0
+#     END: 1.0
+#     FS: 30 # Example sampling rate, adjust to your video
+#     PREPROCESS:
+#       USE_PSUEDO_PPG_LABEL: True # Useful if you don't have ground_truth.txt for the single video
+#       DATA_TYPE: ["DiffNormalized"] # Must match model training
+#       LABEL_TYPE: "DiffNormalized"  # Must match model training
+#       DO_CHUNK: True
+#       CHUNK_LENGTH: 180 # Must match model training
+#       CROP_FACE:
+#         DO_CROP_FACE: True
+#         BACKEND: "HC" # Or "Y5F_..." if you have YOLO5Face setup
+#         USE_LARGE_FACE_BOX: True
+#         LARGE_BOX_COEF: 1.5
+#         DETECTION:
+#           DO_DYNAMIC_DETECTION: False # Or True, if model was trained with it
+#           DYNAMIC_DETECTION_FREQUENCY: 30
+#           USE_MEDIAN_FACE_BOX: False
+#       RESIZE:
+#         W: 128 # Must match model training
+#         H: 128 # Must match model training
+#   METRICS: ['MAE', 'RMSE', 'MAPE', 'Pearson'] # Metrics to compute if ground truth is available

@@ -21,7 +21,7 @@ TEST:
     FILE_LIST_PATH: "mkos/preprocessed_inference/my_avi_tscan_run/DataFileLists" # Adjusted
     EXP_DATA_NAME: "my_avi_tscan_preprocessed" # Unique preprocessing name
     # FS: 30                  # IMPORTANT: SET TO YOUR VIDEO'S ACTUAL FRAME RATE
-    FS: 29
+    FS: 28.67
     PREPROCESS:
       USE_PSUEDO_PPG_LABEL: True # Crucial for no ground truth
       DATA_TYPE: ['DiffNormalized', 'Standardized'] # Common for TSCAN
