@@ -45,5 +45,5 @@ INFERENCE:
   EVALUATION_METHOD: "FFT"
   EVALUATION_WINDOW:
     # USE_SMALLER_WINDOW: False
-    USE_SMALLER_WINDOW: True # because our video is of small resolution 
+    USE_SMALLER_WINDOW: True # smaller window size (duration) used for evaluation.
     WINDOW_SIZE: 10
