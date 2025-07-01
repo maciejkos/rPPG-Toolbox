@@ -21,6 +21,9 @@ test.yaml
 *.out
 .venv
 
-# Ignore all .avi files
+# Ignore all .avi and .mp4 files
 *.avi
 **/*.avi
+
+*.mp4
+**/*.mp4
